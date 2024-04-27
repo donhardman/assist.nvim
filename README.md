@@ -22,7 +22,7 @@ After installation, configure assist.nvim in your Neovim Lua init file:
 require("assist").setup()
 ```
 
-**Important:** Make sure you have the [aichat](https://github.com/sigoden/aichat) tool installed and available in your system's PATH. 
+**Important:** Make sure you have the [aichat](https://github.com/sigoden/aichat) tool installed and available in your system's PATH.
 
 ## Key Features
 
@@ -39,14 +39,14 @@ vim.api.nvim_set_keymap('n', '<leader>a', ':Assist ', {noremap = true, silent = 
 
 ## Connect with the Developer
 
-Follow Don Hardman on X (formerly Twitter): https://x.com/donhardman88 
+Follow Don Hardman on X (formerly Twitter): https://x.com/donhardman88
 
 ## License
 
-    This plugin is released under the MIT License. Copyright (c) 2024 Don Hardman
+This plugin is released under the MIT License. Copyright (c) 2024 Don Hardman
 
 ## Disclaimer
 
-    Assist.nvim is provided "as is" without warranty of any kind, either express or implied. 
+Assist.nvim is provided "as is" without warranty of any kind, either express or implied.
 
 

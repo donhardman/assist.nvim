@@ -1,4 +1,14 @@
 local vim = vim
+local context = [[
+	You are AI coding assistant for editor designed to provide code snippets and programming solutions.
+	Your responses will be directly inserted into the working within the editor.
+	The code you provide should be complete, accurate, and ready to be integrated into the user's project seamlessly.
+	Avoid using any formatting, such as backticks or code tags, and focus solely on providing the raw code.
+	Remember, your response will be inserted directly into file with file type: %s.
+
+	Request: %s
+]]
+
 local has_undo = false
 
 local function isCursorAtEndOfFile()
@@ -16,15 +26,16 @@ local function isCursorAtEndOfFile()
 end
 
 local function replace_with_api_output(text, request)
-  local escaped_text = vim.fn.shellescape(text)
-  local escaped_request = vim.fn.shellescape(request)
+	local escaped_text = vim.fn.shellescape(text)
+	local file_type = vim.bo.filetype
+	local escaped_request = vim.fn.shellescape(string.format(context, file_type, request))
 	local cmd = "sh"
-  local args = {"-c", "echo " .. escaped_text .. " | aichat " .. escaped_request}
-  local stdout = vim.loop.new_pipe()
-  local stderr = vim.loop.new_pipe()
-  local stderr_chunks = {}
+	local args = {"-c", "echo " .. escaped_text .. " | aichat " .. escaped_request}
+	local stdout = vim.loop.new_pipe()
+	local stderr = vim.loop.new_pipe()
+	local stderr_chunks = {}
 
-  local handle, err
+	local handle, err
 	local start_line, start_col, end_line, end_col
 	local function on_stdout_read(_, chunk)
 		if chunk then
@@ -45,11 +56,11 @@ local function replace_with_api_output(text, request)
 		end
 	end
 
-  local function on_stderr_read(_, chunk)
-    if chunk then
-      table.insert(stderr_chunks, chunk)
-    end
-  end
+	local function on_stderr_read(_, chunk)
+		if chunk then
+			table.insert(stderr_chunks, chunk)
+		end
+	end
 
 	local function on_complete(error)
 		if error then
@@ -67,40 +78,40 @@ local function replace_with_api_output(text, request)
 		end
 	end
 
-  handle, err = vim.loop.spawn(cmd, {
+	handle, err = vim.loop.spawn(cmd, {
 		args = args,
-    stdio = { nil, stdout, stderr },
-  }, function(code)
-    stdout:close()
-    stderr:close()
-    if handle ~= nil then
-      handle:close()
-			vim.schedule(function()
-				vim.cmd([[undojoin]])
-				vim.cmd('normal! ' .. start_line .. 'G' .. start_col .. 'v' .. end_line .. 'G' .. end_col .. '|=`]')
-				-- If we have blank new line (block mode of typing, remove it)
-				if end_col == 0 and not isCursorAtEndOfFile() then
+		stdio = { nil, stdout, stderr },
+	}, function(code)
+			stdout:close()
+			stderr:close()
+			if handle ~= nil then
+				handle:close()
+				vim.schedule(function()
 					vim.cmd([[undojoin]])
-					vim.cmd('normal! dd$')
+					vim.cmd('normal! ' .. start_line .. 'G' .. start_col .. 'v' .. end_line .. 'G' .. end_col .. '|=`]')
+					-- If we have blank new line (block mode of typing, remove it)
+					if end_col == 0 and not isCursorAtEndOfFile() then
+						vim.cmd([[undojoin]])
+						vim.cmd('normal! dd$')
+					end
+				end)
+			end
+
+			vim.schedule(function()
+				-- We are done, reset state var
+				has_undo = false
+				if code ~= 0 then
+					on_complete(vim.trim(table.concat(stderr_chunks, "")))
 				end
 			end)
-    end
+		end)
 
-    vim.schedule(function()
-			-- We are done, reset state var
-			has_undo = false
-      if code ~= 0 then
-        on_complete(vim.trim(table.concat(stderr_chunks, "")))
-      end
-    end)
-  end)
-
-  if not handle then
+	if not handle then
 		print('Error while processing: ' .. err)
-  else
-    stdout:read_start(on_stdout_read)
-    stderr:read_start(on_stderr_read)
-  end
+	else
+		stdout:read_start(on_stdout_read)
+		stderr:read_start(on_stderr_read)
+	end
 end
 
 local function region_to_text(region)
@@ -115,11 +126,11 @@ local function region_to_text(region)
 end
 
 vim.api.nvim_create_user_command('Assist',
-  function(args)
+	function(args)
 		local selection = ""
-    if args.range > 0 then
-      local r = vim.region(0, "'<", "'>", vim.fn.visualmode(), true)
-      selection = region_to_text(r)
+		if args.range > 0 then
+			local r = vim.region(0, "'<", "'>", vim.fn.visualmode(), true)
+			selection = region_to_text(r)
 		end
 
 		local request = ''
@@ -130,7 +141,7 @@ vim.api.nvim_create_user_command('Assist',
 		end
 
 		replace_with_api_output(selection, request)
-  end,
-  { nargs = "*", range = true } -- Changed nargs to "*" to accept any text as a single argument
+	end,
+	{ nargs = "*", range = true } -- Changed nargs to "*" to accept any text as a single argument
 )
 
